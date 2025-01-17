@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  lambda:
+    build: .
+    ports:
+      - "9000:8080"
+    environment:
+      - AWS_LAMBDA_RUNTIME_API=localhost:8080
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    volumes:
+      - /tmp:/tmp
+    command: [ "/var/runtime/bootstrap" ]
