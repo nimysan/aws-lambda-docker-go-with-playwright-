@@ -19,15 +19,15 @@ RUN PWGO_VER=$(grep -oE "playwright-go v\S+" /workdir/go.mod | sed 's/playwright
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o /bin/bootstrap
 
 # Stage 3: Final Lambda Image
-FROM public.ecr.aws/lambda/provided:al2
+FROM public.ecr.aws/lambda/provided:al2023
 
 # Copy the bootstrap executable and playwright binary
 COPY --from=builder /bin/bootstrap /var/runtime/bootstrap
 COPY --from=builder /go/bin/playwright /usr/local/bin/
 
 # Install required system dependencies for Playwright
-RUN yum update -y \
-    && yum install -y \
+RUN dnf update -y \
+    && dnf install -y \
     alsa-lib \
     atk \
     cups-libs \
@@ -48,8 +48,8 @@ RUN yum update -y \
     xorg-x11-fonts-misc \
     xorg-x11-fonts-Type1 \
     xorg-x11-utils \
-    && yum clean all \
-    && rm -rf /var/cache/yum
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
 
 # Add playwright to PATH and install browsers
 ENV PATH="/usr/local/bin:${PATH}"
