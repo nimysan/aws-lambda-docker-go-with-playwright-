@@ -1,14 +1,17 @@
 # Stage 1: Modules caching
-FROM golang:1.22 as modules
-COPY go.mod go.sum /modules/
+FROM golang:1.22 AS modules
+COPY go.mod /modules/
+COPY go.sum* /modules/
 WORKDIR /modules
 RUN go mod download
 
 # Stage 2: Build
-FROM golang:1.22 as builder
+FROM golang:1.22 AS builder
 COPY --from=modules /go/pkg /go/pkg
 COPY . /workdir
 WORKDIR /workdir
+# Run go mod tidy to ensure dependencies are up to date
+RUN go mod tidy
 # Install playwright cli with right version for later use
 RUN PWGO_VER=$(grep -oE "playwright-go v\S+" /workdir/go.mod | sed 's/playwright-go //g') \
     && go install github.com/playwright-community/playwright-go/cmd/playwright@${PWGO_VER}
@@ -17,9 +20,10 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o /bin/bootstrap
 
 # Stage 3: Final Lambda Image
 FROM public.ecr.aws/lambda/provided:al2
+
 # Copy the bootstrap executable and playwright binary
 COPY --from=builder /bin/bootstrap /var/runtime/bootstrap
-COPY --from=builder /go/bin/playwright /usr/local/bin/playwright
+COPY --from=builder /go/bin/playwright /usr/local/bin/
 
 # Install required system dependencies for Playwright
 RUN yum update -y \
@@ -47,8 +51,9 @@ RUN yum update -y \
     && yum clean all \
     && rm -rf /var/cache/yum
 
-# Install Playwright browsers and dependencies
-RUN /usr/local/bin/playwright install --with-deps chromium
+# Add playwright to PATH and install browsers
+ENV PATH="/usr/local/bin:${PATH}"
+RUN playwright install --with-deps chromium
 
 # Set execute permissions for the bootstrap
 RUN chmod +x /var/runtime/bootstrap
